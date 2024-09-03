@@ -23,60 +23,31 @@ import csv
 class CsvImportForm(forms.Form):
     csv_file = forms.FileField()
 
-def spaces_validation(testo):
-        matches=[]
-        matches.append(re.search('  ',testo))
-        matches.append(re.search('\n',testo))
-        for m in matches:
-                if m:
-                        m=m.start()+1
-                        b = m-8;
-                        if b < 0 :
-                                b=0
-                        e = m+8
-                        if e > len(testo):
-                                e=len(testo)-1
-                        porzione = testo[b:e]
-                        return porzione
-        return None
-
-def virgolette_validation(testo):
-        if testo.find('"')!=-1:
-                return True
-        return None
-
-def vieta_virgolette(testo):
-        virgolette = virgolette_validation(testo)
-        if virgolette is not None:
-            raise forms.ValidationError(u'Il testo contien caratteri virgolete ("), si prega di sostituirli con i caratteri “ e/o ”')
-        return(virgolette)
-
-def validazione_domande_tutor(testo,vieta_virgolette=False):
-        porzione = spaces_validation(testo)
-        if porzione is not None:
-            raise forms.ValidationError(u'Il testo non è ben formattato, ci sono "doppi spazi" o "a capo" alla porzione [%s]' % porzione )
-        if vieta_virgolette:
-                virgolette = virgolette_validation(testo)
-                if virgolette is not None:
-                    raise forms.ValidationError(u'Il testo contien caratteri virgolete ("), si prega di sostituirli con i caratteri “ e/o ”')
-        return testo
-
+def check_permission(request, obj):
+    if request.user.is_superuser:
+        return True
+    elif obj.owner == request.user:
+        return True
+    elif request.user.groups.filter(name=settings.MOXUTILS_SUPERGROUP).exists():
+        return True
+    elif request.user.related_customer.group == obj.owner.related_customer.group:
+        return True
+    elif hasattr(obj, 'get_allowed_users') and request.user in obj.get_allowed_users():
+        return True
+    else:
+        return False
 
 def save_with_date_and_owner(self, request, obj, form, change):
     if not change:
         obj.owner = request.user
         obj.save()
+    elif check_permission(request, obj):
+        obj.save()
     else:
-        if request.user.is_superuser or obj.owner == request.user or request.user.groups.filter(name=settings.MOXUTILS_SUPERGROUP).exists() or request.user.related_customer.group == obj.owner.related_customer.group:
-            obj.save()
-        elif hasattr(obj, 'get_allowed_users') and request.user in obj.get_allowed_users():
-            obj.save()
-        else:
-            raise Exception(f"__MolError__ Non sei il proprietario di questo oggetto, quindi non puoi modificarlo. Il proprietario è {obj.owner.username}")
-            #Non ri puo` fare, provare con un redirect return render_to_response('athome/error.html', { 'error': "Non sei il proprietario o il revisore di questo oggetto, quindi non puoi modificarlo" }, context_instance=RequestContext(request))
+        raise Exception(f"__MolError__ Non sei il proprietario di questo oggetto, quindi non puoi modificarlo. Il proprietario è {obj.owner.username}")
+        #Non ri puo` fare, provare con un redirect return render_to_response('athome/error.html', { 'error': "Non sei il proprietario o il revisore di questo oggetto, quindi non puoi modificarlo" }, context_instance=RequestContext(request))
 
 class WithDateAndOwnerAdmin_show(admin.ModelAdmin):
-    #exclude = ['owner',]#puo essere sostituito dall'utlizzo di UNUSED_get_form 
     exclude=("owner","created","updated")
     def save_model(self, request, obj, form, change):
         save_with_date_and_owner(self, request, obj, form, change)
@@ -92,29 +63,12 @@ class WithDateAndOwnerAdmin_show(admin.ModelAdmin):
             instance.save()
         formset.save_m2m()
 
-
     def delete_model(self, request, obj):
-        if request.user.is_superuser or obj.owner == request.user:
-            obj.delete()
-        elif request.user.groups.filter(name="manager").exists() and RevisoreCuratore.objects.filter(revisore__user=request.user, curatore__user=obj.owner, abilitato=True).exists():
+        if check_permission(request, obj):
             obj.delete()
         else:
-            if (request.user.related_customer.group == obj.owner.related_customer.group):
-                obj.delete()
-            else:
-                raise Exception(f"__MolError__ Non sei il proprietario di questo oggetto, quindi non puoi eliminarlo. Il proprietario è {obj.owner}")
+           raise Exception(f"__MolError__ Non sei il proprietario di questo oggetto, quindi non puoi eliminarlo. Il proprietario è {obj.owner}")
 
-    def UNUSED_get_form(self, request, obj=None, **kwargs):
-        if not request.user.is_superuser:
-            if self.exclude == None:
-                self.exclude = []
-            self.exclude = list(self.exclude) + ['owner']
-        else:
-            self.raw_id_fields = list(self.raw_id_fields) + ['owner']
-        form = super(WithDateAndOwnerAdmin_show, self).get_form(request, obj, **kwargs)
-        #if self.exclude is None or "owner" not in self.exclude:
-        #    form.base_fields['owner'].initial=request.user.pk
-        return form
 
 class WithDateAndOwnerAdmin(WithDateAndOwnerAdmin_show):
     exclude=("owner","created","updated")
@@ -130,6 +84,7 @@ class WithDateAndOwnerAdmin(WithDateAndOwnerAdmin_show):
                     )
                 )
             )
+    
     def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
         if not (request.user.is_superuser or request.user.groups.filter(name=settings.MOXUTILS_SUPERGROUP).exists()):
             if (request != None and db_field.name != None and db_field.related_model != None and hasattr(db_field.related_model, 'owner')):
