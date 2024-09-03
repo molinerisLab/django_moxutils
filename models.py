@@ -1,13 +1,6 @@
 from django.db import models
 from django.urls import reverse
 
-# Create your models here.
-#from django.core.exceptions import ValidationError
-
-#def validate_even(value):
-#    if value % 2 != 0:
-#        raise ValidationError(u'%s is not an even number' % value)
-
 class WithDateAndOwner(models.Model):
     created         = models.DateTimeField(auto_now_add=True)
     updated         = models.DateTimeField(auto_now=True)
