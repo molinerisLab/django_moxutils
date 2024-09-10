@@ -10,8 +10,7 @@ from django.contrib.auth.models import User
 #from django.shortcuts import render_to_response
 #from django.template import RequestContext
 import re
-from customer.models import Customer
-from moxutils.models import WithDateAndOwner
+from moxutils.models import WithDateAndOwner, Customer, CustomerGroup
 #Inclusioni per csv export
 from django.http import HttpResponse
 from django.db.models.query import QuerySet
@@ -228,3 +227,11 @@ def export_csv_action(description="Export as CSV", fields=None, exclude=None, he
     export_as_csv.acts_on_all = True
     return export_as_csv
 
+@admin.register(Customer)
+class CustomerAdmin(WithDateAndOwnerAdmin):
+    list_display = ('user', 'group' )
+
+
+@admin.register(CustomerGroup)
+class CustomerGroupAdmin(WithDateAndOwnerAdmin):
+    list_display = ('name', 'code' )
