@@ -10,7 +10,7 @@ from django.core.exceptions import ValidationError
 from django.conf import settings
 import re
 
-def create_user_by_email(email,first_name=None, last_name=None, is_staff=False, groups=[]):
+def create_user_by_email(email,first_name=None, last_name=None, is_staff=False, django_auth_groups=[], ):
     email = email.strip().lower()
     try:
         user = User.objects.get(email=email)
@@ -21,7 +21,7 @@ def create_user_by_email(email,first_name=None, last_name=None, is_staff=False, 
         if last_name:
             user.last_name=last_name
         #user.set_password(settings.CUSTOMER_DEFAULT_PSW)
-    for g in groups:
+    for g in django_auth_groups:
         g = Group.objects.get(name=g) 
         g.user_set.add(user)
     user.save()

@@ -1,9 +1,11 @@
 from django.db import models
 from django.urls import reverse
 from django.conf import settings
-
+import logging 
 from django.db.models.signals import pre_save, post_save, m2m_changed
 from .views import create_user_by_email, validate_simple_name
+
+logger = logging.getLogger(__name__)
 
 
 class WithDateAndOwner(models.Model):
@@ -44,9 +46,10 @@ class Customer(WithDateAndOwner):
         return "%s%s" % (self.surname, a)
 
     def create_user(self):
-        return create_user_by_email(self.email,is_staff=True,CustomerGroups=settings.CUSTOMER_DEFAULT_DjangoAuthGroups)
+        return create_user_by_email(self.email,is_staff=True,django_auth_groups=settings.CUSTOMER_DEFAULT_DJANGO_AUTH_GROUPS)
 
 def customer_create_and_set_user(sender, instance, **kwargs):
+
     if instance.user is None:
         post_save.disconnect(customer_create_and_set_user, sender=sender)
         user=instance.create_user()
