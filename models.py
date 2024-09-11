@@ -44,7 +44,7 @@ class Customer(WithDateAndOwner):
         return "%s%s" % (self.surname, a)
 
     def create_user(self):
-        return create_user_by_email(self.email,is_staff=True,CustomerGroups=[settings.CUSTOMER_DEFAULT_CustomerGroup,])
+        return create_user_by_email(self.email,is_staff=True,CustomerGroups=settings.CUSTOMER_DEFAULT_DjangoAuthGroups)
 
 def customer_create_and_set_user(sender, instance, **kwargs):
     if instance.user is None:
