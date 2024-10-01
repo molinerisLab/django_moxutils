@@ -76,17 +76,21 @@ class WithDateAndOwnerAdmin(WithDateAndOwnerAdmin_show):
         if request.user.is_superuser or request.user.groups.filter(name=settings.MOXUTILS_SUPERGROUP).exists():
             return super(WithDateAndOwnerAdmin,self).get_queryset(request)
         else: 
-            return super(WithDateAndOwnerAdmin,self).get_queryset(request).filter(
-                owner__in = User.objects.filter(
-                    related_customer__in = Customer.objects.filter(
-                        group = request.user.related_customer.group
+            if hasattr(request.user, 'related_customer'):
+                return super(WithDateAndOwnerAdmin,self).get_queryset(request).filter(
+                    owner__in = User.objects.filter(
+                        related_customer__in = Customer.objects.filter(
+                            group = request.user.related_customer.group
+                        )
                     )
                 )
-            )
+            else:
+                return super(WithDateAndOwnerAdmin,self).get_queryset(request).filter(owner=request.user)
+
     
     def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
         if not (request.user.is_superuser or request.user.groups.filter(name=settings.MOXUTILS_SUPERGROUP).exists()):
-            if (request != None and db_field.name != None and db_field.related_model != None and hasattr(db_field.related_model, 'owner')):
+            if (request != None and db_field.name != None and db_field.related_model != None and hasattr(db_field.related_model, 'owner') and hasattr(request.user, 'related_customer')):
                 kwargs["queryset"] = db_field.related_model.objects.filter(
                     owner__in = User.objects.filter(
                         related_customer__in = Customer.objects.filter(
