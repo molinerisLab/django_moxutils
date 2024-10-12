@@ -97,7 +97,7 @@ def generate_random_slug(length=64):
     chars = string.ascii_letters + string.digits
     return ''.join(random.choices(chars, k=length))
 
-def geneate_random_name():
+def generate_random_name():
     #pip install names_generator
     from names_generator import generate_name
     return generate_name()
